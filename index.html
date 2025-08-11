@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>QR Inventory Scanner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { font-family: sans-serif; text-align: center; padding: 20px; }
+  video { width: 100%; max-width: 400px; margin-top: 20px; }
+  #result { margin-top: 20px; font-size: 18px; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>สแกน QR สินค้า</h1>
+<button id="start-scan">เริ่มสแกน</button>
+<video id="preview"></video>
+<div id="result"></div>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+const API_KEY = "AIzaSyANSLF9ZbqIer2GF3BAyeAqtEcnIBIIEjs";
+const SHEET_ID = "19uv_v8gBmUsORuXqPzhdMfT2WEXnnI8DNxuR0JY75pI";
+const SHEET_RANGE = "Sheet1!A:C"; // คอลัมน์: รหัสสินค้า | Location | จำนวน
+
+document.getElementById("start-scan").addEventListener("click", () => {
+    const html5QrCode = new Html5Qrcode("preview");
+    html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        (decodedText) => {
+            html5QrCode.stop();
+            searchProduct(decodedText.trim());
+        },
+        (errorMessage) => {}
+    ).catch(err => {
+        document.getElementById("result").innerHTML = "ไม่สามารถเปิดกล้องได้: " + err;
+    });
+});
+
+function searchProduct(code) {
+    document.getElementById("result").innerHTML = "กำลังค้นหา: " + code + "...";
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_RANGE}?key=${API_KEY}`;
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.values) {
+                document.getElementById("result").innerHTML = "ไม่พบข้อมูลใน Google Sheet";
+                return;
+            }
+            const rows = data.values;
+            const found = rows.find(row => row[0] === code);
+            if (found) {
+                document.getElementById("result").innerHTML =
+                    `📦 รหัส: ${found[0]}<br>📍 Location: ${found[1]}<br>📊 จำนวน: ${found[2]}`;
+            } else {
+                document.getElementById("result").innerHTML = "❌ ไม่พบรหัสนี้ในฐานข้อมูล";
+            }
+        })
+        .catch(err => {
+            document.getElementById("result").innerHTML = "เกิดข้อผิดพลาด: " + err;
+        });
+}
+</script>
+
+</body>
+</html>
